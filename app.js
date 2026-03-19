@@ -14,10 +14,10 @@ const io = connectToSocket(server);
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://zoom-clone-frontend-5jxz4tco7-mohitsharma1507s-projects.vercel.app/"],
+    origin: ["http://localhost:5173"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
-  })
+  }),
 );
 
 app.use(bodyParser.json());
