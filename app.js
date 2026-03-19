@@ -14,11 +14,16 @@ const io = connectToSocket(server);
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", `${process.env.FRONTEND_URL}`],
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: [
+      "http://localhost:5173",
+      "https://zoom-clone-frontend-jamt.vercel.app/",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   }),
 );
+
+app.options("*", cors());
 
 app.use(bodyParser.json());
 app.use(cookieParser());
