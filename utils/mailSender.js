@@ -40,9 +40,8 @@ const sendOTPEmail = async (toEmail, otp) => {
   console.log(`OTP sent to ${toEmail}`);
 };
 
-
 const sendMeetingInvite = async (toEmail, meetingCode, hostName) => {
-  const meetingLink = `http://localhost:5173/meeting/${meetingCode}`;
+  const meetingLink = `${process.env.FRONTEND_URL}/meeting/${meetingCode}`;
 
   const mailOptions = {
     from: `"Video Meet App" <${process.env.SMTP_FROM_EMAIL}>`,

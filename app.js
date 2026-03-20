@@ -14,10 +14,7 @@ const io = connectToSocket(server);
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://zoom-clone-frontend-rqsy.vercel.app",
-    ],
+    origin: ["http://localhost:5173", `${process.env.FRONTEND_URL}`],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   }),
@@ -25,7 +22,6 @@ app.use(
 
 app.options("*", cors());
 
-app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -47,6 +43,6 @@ app.get("/home", (req, res) => {
 app.use("/", authRoute);
 
 // Start server with correct instance
-server.listen(8080, () => {
-  console.log("Server listening on port 8080");
+server.listen(process.env.PORT || 8080, () => {
+  console.log("Server listening on port " + (process.env.PORT || 8080));
 });
