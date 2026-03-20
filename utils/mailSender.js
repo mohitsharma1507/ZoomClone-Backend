@@ -1,78 +1,67 @@
-const nodeMailer = require("nodemailer");
-require("dotenv").config();
+const SibApiV3Sdk = require("sib-api-v3-sdk");
 
-const transporter = nodeMailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USERNAME,
-    pass: process.env.SMTP_PASSWORD,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+const client = SibApiV3Sdk.ApiClient.instance;
+const apiKey = client.authentications["api-key"];
+
+apiKey.apiKey = process.env.BREVO_API_KEY;
+
+const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 const sendOTPEmail = async (toEmail, otp) => {
-  const mailOptions = {
-    from: `"Video Meet App" <${process.env.SMTP_FROM_EMAIL}>`,
-    to: toEmail,
-    subject: "Your OTP for Video Meet",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 30px; border: 1px solid #eee; border-radius: 12px;">
-        <h2 style="color: #ff6347; text-align: center;">Video Meet</h2>
-        <p style="font-size: 16px; color: #333;">Your OTP for verification is:</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <span style="font-size: 40px; font-weight: bold; letter-spacing: 10px; color: #ff6347;">
-            ${otp}
-          </span>
-        </div>
-        <p style="color: #888; font-size: 13px;">This OTP is valid for <strong>10 minutes</strong>. Do not share it with anyone.</p>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="color: #aaa; font-size: 12px; text-align: center;">Video Meet App &copy; 2024</p>
-      </div>
-    `,
-  };
+  try {
+    const email = {
+      to: [{ email: toEmail }],
+      sender: {
+        email: process.env.SMTP_FROM_EMAIL,
+        name: "Video Meet App",
+      },
+      subject: "Your OTP for Video Meet",
+      htmlContent: `
+        <h2>Video Meet</h2>
+        <p>Your OTP is:</p>
+        <h1>${otp}</h1>
+        <p>This OTP is valid for 10 minutes</p>
+      `,
+    };
 
-  await transporter.sendMail(mailOptions);
-  console.log(`OTP sent to ${toEmail}`);
+    await apiInstance.sendTransacEmail(email);
+    console.log(" OTP sent:", toEmail);
+  } catch (err) {
+    console.log(" Brevo Error:", err.response?.body || err.message);
+    throw err;
+  }
 };
 
+// Send Meeting Invite
 const sendMeetingInvite = async (toEmail, meetingCode, hostName) => {
-  const meetingLink = `${process.env.FRONTEND_URL}/meeting/${meetingCode}`;
+  try {
+    const meetingLink = `${process.env.FRONTEND_URL}/meeting/${meetingCode}`;
 
-  const mailOptions = {
-    from: `"Video Meet App" <${process.env.SMTP_FROM_EMAIL}>`,
-    to: toEmail,
-    subject: `${hostName} ne aapko meeting mein invite kiya hai!`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 30px; border: 1px solid #eee; border-radius: 12px;">
-        <h2 style="color: #ff6347; text-align: center;">Video Meet</h2>
-        <p style="font-size: 16px; color: #333;">
-          <strong>${hostName}</strong> ne aapko ek meeting mein invite kiya hai!
-        </p>
-        <p style="color: #555;">Meeting Code: <strong style="color: #ff6347;">${meetingCode}</strong></p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${meetingLink}" 
-             style="background: linear-gradient(135deg, #ff6347, #ff4500); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: bold;">
-            Join Meeting
-          </a>
-        </div>
-        <p style="color: #888; font-size: 13px;">Ya phir yeh link copy karke browser mein paste karo:</p>
-        <p style="color: #ff6347; font-size: 13px; word-break: break-all;">${meetingLink}</p>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="color: #aaa; font-size: 12px; text-align: center;">Video Meet App &copy; 2024</p>
-      </div>
-    `,
-  };
+    const email = {
+      to: [{ email: toEmail }],
+      sender: {
+        email: process.env.SMTP_FROM_EMAIL,
+        name: "Video Meet App",
+      },
+      subject: `${hostName} invited you to a meeting`,
+      htmlContent: `
+        <h2>Video Meet</h2>
+        <p><b>${hostName}</b> invited you</p>
+        <p>Meeting Code: <b>${meetingCode}</b></p>
+        <a href="${meetingLink}">Join Meeting</a>
+      `,
+    };
 
-  await transporter.sendMail(mailOptions);
-  console.log(` Meeting invite sent to ${toEmail}`);
+    await apiInstance.sendTransacEmail(email);
+    console.log("Invite sent:", toEmail);
+  } catch (err) {
+    console.log(" Brevo Error:", err.response?.body || err.message);
+    throw err;
+  }
 };
 
 module.exports = { sendOTPEmail, sendMeetingInvite, generateOTP };
