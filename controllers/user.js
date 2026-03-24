@@ -16,7 +16,6 @@ module.exports.Register = async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-
     const otp = generateOTP();
 
     otpStore[email] = {
@@ -265,10 +264,135 @@ module.exports.resendOTP = async (req, res) => {
 
     await sendOTPEmail(email, otp);
 
-    console.log(`✅ OTP resent to ${email}`);
+    console.log(` OTP resent to ${email}`);
     res.status(200).json({ message: "OTP resent successfully!" });
   } catch (error) {
     console.error("Resend OTP error:", error);
     res.status(500).json({ message: "Failed to resend OTP. Try again." });
+  }
+};
+
+module.exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(200).json({
+        message: "If an account with that email exists, a OTP has been sent.",
+        success: true,
+      });
+    }
+
+    const otp = generateOTP();
+    otpStore[email] = {
+      otp,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+      attempts: 0,
+      type: "password_reset",
+    };
+
+    await sendOTPEmail(email, otp);
+    console.log("Password reset OTP sent to:", email);
+    res.status(200).json({
+      message: "If an account with that email exists, a OTP has been sent.",
+      success: true,
+    });
+  } catch (error) {
+    console.error("Forget password error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.verifyForgotPasswordOTP = async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) {
+    return res.status(400).json({ message: "Email and OTP are required" });
+  }
+
+  const stored = otpStore[email];
+  if (!stored || stored.type !== "password_reset") {
+    return res
+      .status(400)
+      .json({ message: "OTP not found. Please request a new one." });
+  }
+
+  if (Date.now() > stored.expiresAt) {
+    delete otpStore[email];
+    return res
+      .status(400)
+      .json({ message: "OTP expired. Please request a new one." });
+  }
+
+  if (stored.attempts >= 3) {
+    delete otpStore[email];
+    return res
+      .status(400)
+      .json({ message: "Too many attempts. Please request a new OTP." });
+  }
+
+  if (stored.otp !== otp) {
+    otpStore[email].attempts += 1;
+    const remaining = 3 - otpStore[email].attempts;
+    return res
+      .status(400)
+      .json({ message: `Invalid OTP. ${remaining} attempts remaining.` });
+  }
+
+  const resetToken = createSecretToken(email, "15m");
+  delete otpStore[email];
+
+  res.status(200).json({
+    message: "OTP verified! You can now reset your password.",
+    success: true,
+    resetToken,
+  });
+};
+
+module.exports.resetPassword = async (req, res) => {
+  const { resetToken, newPassword } = req.body;
+  if (!resetToken || !newPassword) {
+    return res
+      .status(400)
+      .json({ message: "Reset token and new password are required" });
+  }
+  if (newPassword.length < 6) {
+    return res
+      .status(400)
+      .json({ message: "Password must be at least 6 characters long" });
+  }
+  try {
+    const decoded = jwt.verify(resetToken, process.env.TOKEN_KEY);
+    const email = decoded.id;
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    const user = await User.findOneAndUpdate(
+      { email },
+      { $set: { password: hashedPassword } },
+      { new: true },
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({
+      message:
+        "Password reset successful! You can now log in with your new password.",
+      success: true,
+    });
+  } catch (error) {
+    if (
+      error.name === "JsonWebTokenError" ||
+      error.name === "TokenExpiredError"
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Invalid or expired reset token" });
+    }
+    console.error("Reset password error:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
