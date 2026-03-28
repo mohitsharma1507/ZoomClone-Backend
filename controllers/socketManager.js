@@ -64,6 +64,10 @@ const connectToSocket = (server) => {
       io.to(toId).emit("signal", socket.id, message);
     });
 
+    socket.on("media-state", (state) => {
+      socket.to(roomId).emit("media-state", socket.id, state);
+    });
+
     socket.on("chat-message", (data, sender, messageId) => {
       const [matchingRoom, found] = Object.entries(connections).reduce(
         ([room, isFound], [roomKey, roomValue]) => {
