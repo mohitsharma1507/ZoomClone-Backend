@@ -65,7 +65,23 @@ const connectToSocket = (server) => {
     });
 
     socket.on("media-state", (state) => {
-      socket.to(roomId).emit("media-state", socket.id, state);
+      const [matchingRoom, found] = Object.entries(connections).reduce(
+        ([room, isFound], [roomKey, roomValue]) => {
+          if (!isFound && roomValue.includes(socket.id)) {
+            return [roomKey, true];
+          }
+          return [room, isFound];
+        },
+        ["", false],
+      );
+
+      if (found) {
+        connections[matchingRoom].forEach((id) => {
+          if (id !== socket.id) {
+            io.to(id).emit("media-state", socket.id, state);
+          }
+        });
+      }
     });
 
     socket.on("chat-message", (data, sender, messageId) => {
